@@ -1,9 +1,31 @@
 [project]
 name = "transcribe"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Transcribe audio and video files using Mistral's Voxtral API"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "httpx>=0.28.1",
+    "mistralai>=1.12.2",
+    "pydantic-settings>=2.8.1",
     "typer>=0.23.1",
 ]
+
+[project.scripts]
+transcribe = "transcribe.cli:cli"
+
+[tool.ruff]
+# By default, Ruff enables Flake8's E and F rules, we enable a few more:
+# Pyflakes:         F
+# pycodestyle:      E, W
+# Pylint:           PLC, PLE, PLW
+# isort:            I
+# flake8-bugbear:   B (opinionated bug & design problems)
+# flake8-simplify:  SIM (suggest simpler alternatives)
+# pyupgrade:        UP (modernize Python code)
+lint.select = ['E', 'F', 'W', 'PLC', 'PLE', 'PLW', 'I', "B", "SIM", "UP"]
+line-length = 88
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
