@@ -7,7 +7,8 @@ A CLI tool for transcribing audio and video files using Mistral's Voxtral API.
 ### Prerequisites
 
 1. **ffmpeg**: Install ffmpeg and ensure it's in your PATH.
-   - Linux: `sudo apt install ffmpeg` (Debian/Ubuntu) or `sudo dnf install ffmpeg` (Fedora)
+   - Linux: `sudo apt install ffmpeg` (Debian/Ubuntu)
+     or `sudo dnf install ffmpeg` (Fedora)
    - macOS: `brew install ffmpeg`
    - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
 
@@ -15,6 +16,9 @@ A CLI tool for transcribing audio and video files using Mistral's Voxtral API.
    ```bash
    export MISTRAL_API_KEY="your-api-key-here"
    ```
+   - You can get one here: https://admin.mistral.ai/organization/api-keys
+   - Transcription is cheap: put €5 in the account and you can transcribe
+     28 hours of content.
 
 ### Install with pipx
 
@@ -69,7 +73,15 @@ uv sync
 
 # Install pre-commit hook
 pre-commit install
+```
 
+Then, you need to create a `.env` file with your key:
+```
+MISTRAL_API_KEY=...
+```
+
+Finally, you can run the CI:
+```
 # Run the CLI
 uv run transcribe input.mp3 output.txt
 ```
