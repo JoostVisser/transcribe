@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import typer
-from mistralai import Mistral
+from mistralai.client import Mistral
 
 from transcribe.settings import settings
 from transcribe.types import TranscriptionKind
