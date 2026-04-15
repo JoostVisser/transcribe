@@ -17,7 +17,7 @@ def run(
         Path,
         typer.Argument(exists=True, help="Path to the input video/audio file"),
     ],
-    output_text: Annotated[
+    output_file: Annotated[
         Path,
         typer.Argument(
             help=(
@@ -35,10 +35,10 @@ def run(
 
     Args:
         input_file: Path to the input video or audio file.
-        output_text: Path where the transcription will be saved.
+        output_file: Path where the transcription will be saved.
         kind: Type of transcription to perform: standard, segmented, annotated.
     """
-    transcribe_file(input_file, output_text, kind)
+    transcribe_file(input_file, output_file, kind)
 
 
 def cli() -> None:

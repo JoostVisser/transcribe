@@ -13,9 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Changed the default to segmented.
+- Changed the default annotation to segmented.
 - `ffmpeg` is now bundled as a dependency.
 - Audio conversion changed to `.mp3` instead of `wav` for faster transcriptions.
+- Clean up documentation.
 
 ### Fixed
 
@@ -25,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Change support from python 3.14+ to 3.11+.
+- Change support from Python 3.14+ to 3.11+.
 
 ### Fixed
 
@@ -43,4 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `annotated`: Transcription with timestamps and speaker labels (diarization)
 - Automatic audio conversion to WAV format using ffmpeg
 - Error handling for missing files, conversion failures, and API errors
-- CLI entry point `transcribe run` with options for input file, output file, and transcription kind
+- CLI entry point `transcribe run` with options for input file, output file, and
+  transcription kind
+
+
+[1.1.0]: https://github.com/JoostVisser/transcribe/compare/1.0.0...1.1.0
+[1.0.0]: https://github.com/JoostVisser/transcribe/releases/tag/1.0.0

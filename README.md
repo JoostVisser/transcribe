@@ -11,8 +11,8 @@ A CLI tool for transcribing audio and video files using Mistral's Voxtral API.
    export MISTRAL_API_KEY="your-api-key-here"
    ```
    - You can get one here: https://admin.mistral.ai/organization/api-keys
-   - Transcription is cheap: put €5 in the account and you can transcribe
-     30+ hours of content.
+   - Transcription is cheap: put €5 in the account and you can transcribe 30+ hours of
+     content.
 
 ### Install with pipx
 
@@ -30,11 +30,15 @@ Then, install the latest version of transcribe:
 pipx install git+https://github.com/joostvisser/transcribe.git
 ```
 
-## Usage
+Or install a specific version:
+
+```bash
+pipx install git+https://github.com/joostvisser/transcribe.git@1.1.0
+```
 
 ### Commands
 
-#### `transcribe run INPUT_FILE OUTPUT_FILE [--kind KIND]`
+#### `transcribe INPUT_FILE OUTPUT_FILE [--kind KIND]`
 
 Transcribe a video or audio file to text.
 
@@ -53,16 +57,16 @@ Transcribe a video or audio file to text.
 
 ```bash
 # Segmented transcription with timestamps
-transcribe run recording.wav segments.txt
+transcribe recording.wav segments.txt
 
 # Generating subtitles for a video.
-transcribe run video.mp4 subtitles.srt
+transcribe video.mp4 subtitles.srt
 
 # Annotated transcription with speaker labels
-transcribe run interview.mp4 interview.txt --kind annotated
+transcribe interview.mp4 interview.txt --kind annotated
 
 # Get help
-transcribe run --help
+transcribe --help
 ```
 
 ## Development

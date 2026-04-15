@@ -19,7 +19,6 @@ Determined by output file extension:
 ```bash
 uv sync                          # install deps
 uv run transcribe INPUT OUTPUT [--kind standard|segmented|annotated]
-uv run pytest                    # run tests
 ```
 
 ## Notes
