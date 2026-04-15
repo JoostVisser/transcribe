@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- When saving files with `.srt` suffix, now saves them as SRT format.
+
+### Changed
+
+- Changed the default to segmented.
+- `ffmpeg` is now bundled as a dependency.
+- Audio conversion changed to `.mp3` instead of `wav` for faster transcriptions.
+
+### Fixed
+
+- Large video files (2+ hours) are now supported.
+
 ## [1.1.0] - 2026-03-26
 
 ### Changed

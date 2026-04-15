@@ -19,11 +19,17 @@ def run(
     ],
     output_text: Annotated[
         Path,
-        typer.Argument(help="Path where the transcription will be saved"),
+        typer.Argument(
+            help=(
+                "Path where the transcription will be saved (.txt, .srt). "
+                "For .srt, use --kind segmented (no speaker labels) "
+                "or --kind annotated (with speaker labels)."
+            )
+        ),
     ],
     kind: Annotated[
         TranscriptionKind, typer.Option(help="standard, segmented, annotated)")
-    ] = TranscriptionKind.STANDARD,
+    ] = TranscriptionKind.SEGMENTED,
 ) -> None:
     """Transcribe a video or audio file to text.
 

@@ -1,4 +1,7 @@
-"""Application settings and configuration."""
+"""Application settings and configuration.
+
+The Settings class will automatically load environment variables from a .env file.
+"""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

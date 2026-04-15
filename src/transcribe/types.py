@@ -1,4 +1,13 @@
+from dataclasses import dataclass
 from enum import StrEnum
+
+
+@dataclass
+class Segment:
+    start: float
+    end: float
+    text: str
+    speaker_id: str | None = None
 
 
 class TranscriptionKind(StrEnum):

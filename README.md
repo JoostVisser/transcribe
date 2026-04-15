@@ -6,21 +6,25 @@ A CLI tool for transcribing audio and video files using Mistral's Voxtral API.
 
 ### Prerequisites
 
-1. **ffmpeg**: Install ffmpeg and ensure it's in your PATH.
-   - Linux: `sudo apt install ffmpeg` (Debian/Ubuntu)
-     or `sudo dnf install ffmpeg` (Fedora)
-   - macOS: `brew install ffmpeg`
-   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-
-2. **Mistral API Key**: Set your `MISTRAL_API_KEY` environment variable.
+1. **Mistral API Key**: Set your `MISTRAL_API_KEY` environment variable.
    ```bash
    export MISTRAL_API_KEY="your-api-key-here"
    ```
    - You can get one here: https://admin.mistral.ai/organization/api-keys
    - Transcription is cheap: put €5 in the account and you can transcribe
-     28 hours of content.
+     30+ hours of content.
 
 ### Install with pipx
+
+Use `pipx` if you want to have an isolated installation.
+
+Install `pipx`:
+
+```bash
+pip install pipx
+```
+
+Then, install the latest version of transcribe:
 
 ```bash
 pipx install git+https://github.com/joostvisser/transcribe.git
@@ -30,16 +34,17 @@ pipx install git+https://github.com/joostvisser/transcribe.git
 
 ### Commands
 
-#### `transcribe run INPUT_FILE OUTPUT_TEXT [--kind KIND]`
+#### `transcribe run INPUT_FILE OUTPUT_FILE [--kind KIND]`
 
 Transcribe a video or audio file to text.
 
 **Arguments:**
-- `INPUT_FILE`: Path to the input video or audio file
-- `OUTPUT_TEXT`: Path where the transcription will be saved
+- `INPUT_FILE`: Path to the input video or audio file.
+- `OUTPUT_FILE`: Path where the transcription will be saved
+  If `OUTPUT_FILE` ends with `.srt`, the transcription will be saved as an SRT File.
 
 **Options:**
-- `--kind`: Type of transcription (default: `standard`)
+- `--kind`: Type of transcription (default: `segmented`)
   - `standard`: Full transcription without timestamps or speaker labels
   - `segmented`: Transcription with timestamps for each segment
   - `annotated`: Transcription with timestamps and speaker labels (diarization)
@@ -47,11 +52,11 @@ Transcribe a video or audio file to text.
 ### Examples
 
 ```bash
-# Standard transcription
-transcribe run meeting.mp3 meeting.txt
-
 # Segmented transcription with timestamps
-transcribe run recording.wav segments.txt --kind segmented
+transcribe run recording.wav segments.txt
+
+# Generating subtitles for a video.
+transcribe run video.mp4 subtitles.srt
 
 # Annotated transcription with speaker labels
 transcribe run interview.mp4 interview.txt --kind annotated
