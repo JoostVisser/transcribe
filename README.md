@@ -33,7 +33,7 @@ pipx install git+https://github.com/joostvisser/transcribe.git
 Or install a specific version:
 
 ```bash
-pipx install git+https://github.com/joostvisser/transcribe.git@1.1.0
+pipx install git+https://github.com/joostvisser/transcribe.git@2.0.0
 ```
 
 ### Commands
