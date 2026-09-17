@@ -38,7 +38,7 @@ pipx install git+https://github.com/joostvisser/transcribe.git@2.0.0
 
 ### Commands
 
-#### `transcribe INPUT_FILE OUTPUT_FILE [--kind KIND]`
+#### `transcribe INPUT_FILE OUTPUT_FILE [--kind KIND] [--bias FILE]`
 
 Transcribe a video or audio file to text.
 
@@ -52,6 +52,9 @@ Transcribe a video or audio file to text.
   - `standard`: Full transcription without timestamps or speaker labels
   - `segmented`: Transcription with timestamps for each segment
   - `annotated`: Transcription with timestamps and speaker labels (diarization)
+- `--bias`: Optional glossary file with one term per line (blank lines and
+  `#` comments are ignored). Terms are passed to the API as `context_bias`
+  to improve spelling of proper nouns (max 100 terms).
 
 ### Examples
 
@@ -64,6 +67,9 @@ transcribe video.mp4 subtitles.srt
 
 # Annotated transcription with speaker labels
 transcribe interview.mp4 interview.txt --kind annotated
+
+# Improve proper-noun spelling with a glossary file
+transcribe interview.mp4 interview.txt --bias glossary.txt
 
 # Get help
 transcribe --help

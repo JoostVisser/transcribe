@@ -18,7 +18,10 @@ _CHUNK_SIZE_THRESHOLD = 20 * 1024 * 1024  # 20 MB
 
 
 def transcribe_file(
-    input_path: Path, output_path: Path, kind: TranscriptionKind
+    input_path: Path,
+    output_path: Path,
+    kind: TranscriptionKind,
+    bias_terms: list[str] | None = None,
 ) -> None:
     """Convert input file to WAV and transcribe it.
 
@@ -26,6 +29,7 @@ def transcribe_file(
         input_path: Path to the input audio or video file.
         output_path: Path where the transcription will be saved.
         kind: Type of transcription to perform: standard, segmented, annotated.
+        bias_terms: Optional glossary terms passed to the API as context_bias.
 
     Raises:
         typer.Exit: If conversion or transcription fails.
@@ -60,10 +64,10 @@ def transcribe_file(
     try:
         if mp3_path.stat().st_size > _CHUNK_SIZE_THRESHOLD:
             typer.echo("Large file detected, splitting into chunks...")
-            text = _transcribe_chunks(mp3_path, kind, is_srt)
+            text = _transcribe_chunks(mp3_path, kind, is_srt, bias_terms)
         else:
             typer.echo("Transcribing...")
-            text = _transcribe_mp3(mp3_path, kind, is_srt)
+            text = _transcribe_mp3(mp3_path, kind, is_srt, bias_terms)
 
         output_path.write_text(text, encoding="utf-8")
         typer.echo(f"Transcription saved to {output_path}")
@@ -74,18 +78,28 @@ def transcribe_file(
         mp3_path.unlink(missing_ok=True)
 
 
-def _transcribe_mp3(mp3_path: Path, kind: TranscriptionKind, is_srt: bool) -> str:
+def _transcribe_mp3(
+    mp3_path: Path,
+    kind: TranscriptionKind,
+    is_srt: bool,
+    bias_terms: list[str] | None,
+) -> str:
     """Transcribe a single MP3 file and return the formatted result."""
     if kind is TranscriptionKind.STANDARD:
-        return get_standard_transcription(mp3_path)
+        return get_standard_transcription(mp3_path, bias_terms)
     diarize = kind is TranscriptionKind.ANNOTATED
-    segments = get_segments(mp3_path, diarize)
+    segments = get_segments(mp3_path, diarize, bias_terms)
     if not segments:
         raise TranscriptionError("No segments found in transcription response.")
     return formats.to_srt(segments) if is_srt else formats.to_annotated_text(segments)
 
 
-def _transcribe_chunks(mp3_path: Path, kind: TranscriptionKind, is_srt: bool) -> str:
+def _transcribe_chunks(
+    mp3_path: Path,
+    kind: TranscriptionKind,
+    is_srt: bool,
+    bias_terms: list[str] | None,
+) -> str:
     """Split MP3 into chunks, transcribe each, and combine results."""
     with TemporaryDirectory() as tmp_dir:
         chunks = split_mp3(mp3_path, Path(tmp_dir))
@@ -95,7 +109,7 @@ def _transcribe_chunks(mp3_path: Path, kind: TranscriptionKind, is_srt: bool) ->
             texts: list[str] = []
             for i, chunk in enumerate(chunks, start=1):
                 typer.echo(f"  Transcribing chunk {i}/{len(chunks)}...")
-                texts.append(get_standard_transcription(chunk))
+                texts.append(get_standard_transcription(chunk, bias_terms))
             return " ".join(texts)
 
         diarize = kind is TranscriptionKind.ANNOTATED
@@ -103,7 +117,7 @@ def _transcribe_chunks(mp3_path: Path, kind: TranscriptionKind, is_srt: bool) ->
         for i, chunk in enumerate(chunks):
             typer.echo(f"  Transcribing chunk {i + 1}/{len(chunks)}...")
             offset = i * CHUNK_SECONDS
-            for seg in get_segments(chunk, diarize):
+            for seg in get_segments(chunk, diarize, bias_terms):
                 all_segments.append(
                     Segment(
                         start=seg.start + offset,
