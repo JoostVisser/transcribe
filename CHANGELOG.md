@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-14
+
+### Added
+
+- OpenRouter as a provider, with `microsoft/mai-transcribe-2` as the default
+  model: used when `OPENROUTER_API_KEY` is set. Speaker labels
+  (`--kind annotated`) and `--bias` go to OpenRouter as `diarize` and
+  `keyterms`, or Azure's own options for Microsoft's models.
+- `--provider openrouter|mistral` and `--model` options.
+- API keys can live in `~/.config/transcribe/.env`, for runs from another
+  directory.
+- The cost of a run is printed when the provider reports it (OpenRouter).
+- Network errors, rate limits and overloaded providers are retried on
+  OpenRouter.
+- Tests (`uv run pytest`).
+
+### Changed
+
+- Audio is always sent in pieces of the provider's length (5 minutes on
+  OpenRouter, 10 on Mistral) instead of only above 20 MB.
+- Audio without speech writes an empty transcription instead of failing.
+- API errors from Mistral are reported as an error message instead of a
+  traceback.
+
 ## [2.0.1] - 2026-09-17
 
 ### Added
@@ -55,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI entry point `transcribe run` with options for input file, output file, and
   transcription kind
 
+[2.1.0]: https://github.com/JoostVisser/transcribe/compare/2.0.0...2.1.0
 [2.0.1]: https://github.com/JoostVisser/transcribe/compare/2.0.0...2.0.1
 [2.0.0]: https://github.com/JoostVisser/transcribe/compare/1.1.0...2.0.0
 [1.1.0]: https://github.com/JoostVisser/transcribe/compare/1.0.0...1.1.0

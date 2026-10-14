@@ -1,18 +1,35 @@
 # transcribe
 
-A CLI tool for transcribing audio and video files using Mistral's Voxtral API.
+A CLI tool for transcribing audio and video files to text or subtitles, using
+any speech-to-text model on [OpenRouter](https://openrouter.ai/collections/speech-to-text-models)
+(by default Microsoft's MAI-Transcribe 2) or Mistral's Voxtral API.
 
 ## Installation
 
 ### Prerequisites
 
-1. **Mistral API Key**: Set your `MISTRAL_API_KEY` environment variable.
-   ```bash
-   export MISTRAL_API_KEY="your-api-key-here"
-   ```
-   - You can get one here: https://admin.mistral.ai/organization/api-keys
-   - Transcription is cheap: put €5 in the account and you can transcribe 30+ hours of
-     content.
+An API key for one of the providers:
+
+- **OpenRouter** (recommended): `OPENROUTER_API_KEY`, from
+  https://openrouter.ai/settings/keys. The default model,
+  `microsoft/mai-transcribe-2`, costs about $0.10 per hour of audio and
+  supports 60 languages, speaker labels and keyword biasing.
+- **Mistral**: `MISTRAL_API_KEY`, from
+  https://admin.mistral.ai/organization/api-keys. Voxtral Mini costs about
+  $0.18 per hour of audio.
+
+Put the key in one of these places (earlier ones win):
+
+1. an environment variable: `export OPENROUTER_API_KEY="..."`
+2. a `.env` file in the current directory
+3. `~/.config/transcribe/.env` (or `$XDG_CONFIG_HOME/transcribe/.env`), for
+   services and scripts that run from another directory
+
+```
+OPENROUTER_API_KEY=...
+```
+
+With both keys set, OpenRouter is used unless you pass `--provider mistral`.
 
 ### Install with pipx
 
@@ -33,19 +50,19 @@ pipx install git+https://github.com/joostvisser/transcribe.git
 Or install a specific version:
 
 ```bash
-pipx install git+https://github.com/joostvisser/transcribe.git@2.0.0
+pipx install git+https://github.com/joostvisser/transcribe.git@2.1.0
 ```
 
 ### Commands
 
-#### `transcribe INPUT_FILE OUTPUT_FILE [--kind KIND] [--bias FILE]`
+#### `transcribe INPUT_FILE OUTPUT_FILE [--kind KIND] [--bias FILE] [--provider NAME] [--model MODEL]`
 
 Transcribe a video or audio file to text.
 
 **Arguments:**
 - `INPUT_FILE`: Path to the input video or audio file.
-- `OUTPUT_FILE`: Path where the transcription will be saved
-  If `OUTPUT_FILE` ends with `.srt`, the transcription will be saved as an SRT File.
+- `OUTPUT_FILE`: Path where the transcription will be saved.
+  If `OUTPUT_FILE` ends with `.srt`, the transcription will be saved as an SRT file.
 
 **Options:**
 - `--kind`: Type of transcription (default: `segmented`)
@@ -53,8 +70,23 @@ Transcribe a video or audio file to text.
   - `segmented`: Transcription with timestamps for each segment
   - `annotated`: Transcription with timestamps and speaker labels (diarization)
 - `--bias`: Optional glossary file with one term per line (blank lines and
-  `#` comments are ignored). Terms are passed to the API as `context_bias`
-  to improve spelling of proper nouns (max 100 terms).
+  `#` comments are ignored). The terms bias the spelling of proper nouns:
+  OpenRouter's `keyterms` (at most 1000) or Mistral's `context_bias` (at
+  most 100). Terms are hints, not forced output.
+- `--provider`: `openrouter` or `mistral` (default: OpenRouter when
+  `OPENROUTER_API_KEY` is set, else Mistral).
+- `--model`: The model on that provider (default:
+  `microsoft/mai-transcribe-2` on OpenRouter, `voxtral-mini-latest` on
+  Mistral). On OpenRouter, any model that returns segment timestamps
+  (`verbose_json`) works for `segmented` and `annotated`; some, such as
+  `openai/gpt-4o-transcribe`, only do `standard`.
+
+Audio is sent in pieces: 5 minutes on OpenRouter (its providers time out
+after 60 seconds per request), 10 minutes on Mistral. Speaker labels are per
+piece, so in long recordings `speaker_1` in one piece may be another person
+in the next. Audio without speech gives an empty transcription, not an
+error. OpenRouter reports what each request cost; the total is printed at
+the end.
 
 ### Examples
 
@@ -70,6 +102,10 @@ transcribe interview.mp4 interview.txt --kind annotated
 
 # Improve proper-noun spelling with a glossary file
 transcribe interview.mp4 interview.txt --bias glossary.txt
+
+# Another model on OpenRouter, or Mistral
+transcribe video.mp4 subtitles.srt --model openai/whisper-large-v3-turbo
+transcribe video.mp4 subtitles.srt --provider mistral
 
 # Get help
 transcribe --help
@@ -90,13 +126,15 @@ uv sync
 pre-commit install
 ```
 
-Then, you need to create a `.env` file with your key:
-```
-MISTRAL_API_KEY=...
-```
+Then, create a `.env` file with your key (see above), and run:
 
-Finally, you can run the CI:
-```
+```bash
+# Run the tests (no API calls; the audio tests use the bundled ffmpeg)
+uv run pytest
+
+# Lint and format
+uv run ruff check . && uv run ruff format .
+
 # Run the CLI
 uv run transcribe input.mp3 output.txt
 ```

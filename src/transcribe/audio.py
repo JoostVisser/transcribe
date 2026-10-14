@@ -54,12 +54,7 @@ def convert_to_mp3(input_path: str | Path, output_path: str | Path) -> None:
         raise ConversionError(f"ffmpeg failed: {e.stderr}") from e
 
 
-CHUNK_SECONDS = 600  # 10 minutes per chunk
-
-
-def split_mp3(
-    input_path: Path, output_dir: Path, chunk_seconds: int = CHUNK_SECONDS
-) -> list[Path]:
+def split_mp3(input_path: Path, output_dir: Path, chunk_seconds: int) -> list[Path]:
     """Split an MP3 file into fixed-duration chunks using ffmpeg.
 
     Args:

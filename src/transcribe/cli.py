@@ -5,12 +5,13 @@ from typing import Annotated
 
 import typer
 
+from transcribe.providers import make_provider
 from transcribe.transcribe import transcribe_file
-from transcribe.types import TranscriptionKind
+from transcribe.types import ProviderName, TranscriptionError, TranscriptionKind
 
-MAX_BIAS_TERMS = 100  # API limit for context_bias phrases.
-
-app = typer.Typer(help="Transcribe audio and video files using Mistral's Voxtral API.")
+app = typer.Typer(
+    help="Transcribe audio and video files using OpenRouter or Mistral's Voxtral API."
+)
 
 
 @app.command()
@@ -30,7 +31,7 @@ def run(
         ),
     ],
     kind: Annotated[
-        TranscriptionKind, typer.Option(help="standard, segmented, annotated)")
+        TranscriptionKind, typer.Option(help="standard, segmented, annotated")
     ] = TranscriptionKind.SEGMENTED,
     bias: Annotated[
         Path | None,
@@ -39,8 +40,26 @@ def run(
             dir_okay=False,
             help=(
                 "Glossary file with one term per line (blank lines and "
-                "# comments are ignored) passed to the API as context_bias."
+                "# comments are ignored) to bias the spelling of proper nouns."
             ),
+        ),
+    ] = None,
+    provider: Annotated[
+        ProviderName | None,
+        typer.Option(
+            help=(
+                "Transcription API (default: openrouter if OPENROUTER_API_KEY "
+                "is set, else mistral)."
+            )
+        ),
+    ] = None,
+    model: Annotated[
+        str | None,
+        typer.Option(
+            help=(
+                "Model to use (default: microsoft/mai-transcribe-2 on "
+                "openrouter, voxtral-mini-latest on mistral)."
+            )
         ),
     ] = None,
 ) -> None:
@@ -51,22 +70,29 @@ def run(
         output_file: Path where the transcription will be saved.
         kind: Type of transcription to perform: standard, segmented, annotated.
         bias: Optional glossary file used to bias spelling of proper nouns.
+        provider: Transcription API to use.
+        model: Model to use on that API.
     """
-    bias_terms = load_bias_terms(bias) if bias else None
-    transcribe_file(input_file, output_file, kind, bias_terms)
+    try:
+        api = make_provider(provider, model)
+    except TranscriptionError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
+    bias_terms = load_bias_terms(bias, api.max_bias_terms) if bias else None
+    transcribe_file(input_file, output_file, kind, api, bias_terms)
 
 
-def load_bias_terms(path: Path) -> list[str]:
+def load_bias_terms(path: Path, limit: int) -> list[str]:
     """Load glossary terms from a file, one term per line."""
     terms = [
         stripped
         for line in path.read_text(encoding="utf-8").splitlines()
         if (stripped := line.strip()) and not stripped.startswith("#")
     ]
-    if len(terms) > MAX_BIAS_TERMS:
+    if len(terms) > limit:
         typer.echo(
             f"Error: {path} contains {len(terms)} terms; "
-            f"the API allows at most {MAX_BIAS_TERMS}.",
+            f"the API allows at most {limit}.",
             err=True,
         )
         raise typer.Exit(1)
