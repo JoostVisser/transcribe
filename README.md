@@ -50,7 +50,7 @@ pipx install git+https://github.com/joostvisser/transcribe.git
 Or install a specific version:
 
 ```bash
-pipx install git+https://github.com/joostvisser/transcribe.git@2.1.0
+pipx install git+https://github.com/joostvisser/transcribe.git@2.2.0
 ```
 
 ### Commands
@@ -71,8 +71,9 @@ Transcribe a video or audio file to text.
   - `annotated`: Transcription with timestamps and speaker labels (diarization)
 - `--bias`: Optional glossary file with one term per line (blank lines and
   `#` comments are ignored). The terms bias the spelling of proper nouns:
-  OpenRouter's `keyterms` (at most 1000) or Mistral's `context_bias` (at
-  most 100). Terms are hints, not forced output.
+  Azure's phrase list for Microsoft's models, `keyterms` for other
+  OpenRouter models (at most 1000), or Mistral's `context_bias` (at most
+  100). Terms are hints, not forced output.
 - `--provider`: `openrouter` or `mistral` (default: OpenRouter when
   `OPENROUTER_API_KEY` is set, else Mistral).
 - `--model`: The model on that provider (default:
@@ -85,7 +86,9 @@ Audio is sent in pieces: 5 minutes on OpenRouter (its providers time out
 after 60 seconds per request), 10 minutes on Mistral. Speaker labels are per
 piece, so in long recordings `speaker_1` in one piece may be another person
 in the next. Audio without speech gives an empty transcription, not an
-error. OpenRouter reports what each request cost; the total is printed at
+error. Where the model gives word timestamps (MAI-Transcribe 2 does), `.srt`
+cues are split at pauses, sentence ends and at about 6 seconds or 80
+characters, so subtitles stay readable; `.txt` keeps whole segments. OpenRouter reports what each request cost; the total is printed at
 the end.
 
 ### Examples

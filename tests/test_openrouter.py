@@ -48,17 +48,20 @@ def test_segments_send_the_audio_and_the_options(audio: Path) -> None:
     provider, _ = _provider(handler)
     segments = provider.segments(audio, diarize=False, bias_terms=["Briançon"])
 
-    assert segments == [
-        Segment(0.0, 1.2, "Hello there."),
-        Segment(1.4, 2.0, "Hi!"),
+    assert [(seg.start, seg.end, seg.text) for seg in segments] == [
+        (0.0, 1.2, "Hello there."),
+        (1.4, 2.0, "Hi!"),
     ]
     body = bodies[0]
     assert body["model"] == "microsoft/mai-transcribe-2"
     assert body["input_audio"] == {"data": "SUQzIGZha2UgbXAz", "format": "mp3"}
     assert body["response_format"] == "verbose_json"
-    assert body["timestamp_granularities"] == ["segment"]
-    assert body["keyterms"] == ["Briançon"]
-    assert "diarize" not in body and "provider" not in body
+    assert body["timestamp_granularities"] == ["segment", "word"]
+    # Azure refuses keyterms; its own phrase list goes through
+    assert body["provider"] == {
+        "options": {"azure": {"phraseList": {"phrases": ["Briançon"]}}}
+    }
+    assert "diarize" not in body and "keyterms" not in body
     assert provider.cost == pytest.approx(0.0001)
 
 
@@ -74,58 +77,32 @@ def test_annotated_labels_speakers_from_one(audio: Path) -> None:
 
     assert [s.speaker_id for s in segments] == ["speaker_1", "speaker_2"]
     assert bodies[0]["diarize"] is True
-    assert bodies[0]["timestamp_granularities"] == ["segment", "word"]
-    assert "keyterms" not in bodies[0]
+    assert "keyterms" not in bodies[0] and "provider" not in bodies[0]
 
 
-def test_azure_options_when_the_generic_ones_are_refused(audio: Path) -> None:
-    bodies: list[dict[str, Any]] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        body = json.loads(request.content)
-        bodies.append(body)
-        if "diarize" in body or "keyterms" in body:
-            return httpx.Response(400, json={"error": {"message": "unsupported"}})
-        return httpx.Response(200, json=VERBOSE)
-
-    provider, _ = _provider(handler)
-    provider.segments(audio, diarize=True, bias_terms=["Cádiz"])
-    provider.segments(audio, diarize=True, bias_terms=["Cádiz"])
-
-    # refused once, then the Azure names for this chunk and every later one
-    assert len(bodies) == 3
-    assert bodies[1]["provider"] == {
-        "options": {
-            "azure": {
-                "diarization": {"enabled": True},
-                "phraseList": {"phrases": ["Cádiz"]},
-            }
-        }
-    }
-    assert bodies[2]["provider"] == bodies[1]["provider"]
-    assert provider.cost == pytest.approx(0.0002)
-
-
-def test_a_bad_request_without_extras_is_an_error(audio: Path) -> None:
+def test_a_bad_request_is_an_error_without_retries(audio: Path) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, json={"error": {"code": 400, "message": "no"}})
 
-    provider, _ = _provider(handler)
+    provider, slept = _provider(handler)
     with pytest.raises(TranscriptionError, match="OpenRouter 400: no"):
         provider.standard(audio, bias_terms=None)
+    assert slept == []
 
 
-def test_other_models_get_no_azure_retry(audio: Path) -> None:
-    calls: list[httpx.Request] = []
+def test_other_models_get_keyterms(audio: Path) -> None:
+    bodies: list[dict[str, Any]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        calls.append(request)
-        return httpx.Response(400, json={"error": {"message": "no diarize"}})
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json=VERBOSE)
 
-    provider, _ = _provider(handler, model="openai/whisper-large-v3")
-    with pytest.raises(TranscriptionError, match="no diarize"):
-        provider.segments(audio, diarize=True, bias_terms=None)
-    assert len(calls) == 1
+    provider, _ = _provider(handler, model="elevenlabs/scribe-v2")
+    provider.segments(audio, diarize=True, bias_terms=["Cádiz"])
+
+    assert bodies[0]["keyterms"] == ["Cádiz"]
+    assert bodies[0]["diarize"] is True
+    assert "provider" not in bodies[0]
 
 
 def test_overloaded_and_unreachable_are_retried(audio: Path) -> None:
@@ -178,10 +155,9 @@ def test_speakers_only_on_words_go_to_their_segment() -> None:
             {"word": "Hi", "start": 2.1, "end": 2.4, "speaker_label": "Guide"},
         ],
     }
-    assert [s.speaker_id for s in parse_segments(data, diarize=True)] == [
-        "speaker_2",
-        "Guide",
-    ]
+    segments = parse_segments(data, diarize=True)
+    assert [s.speaker_id for s in segments] == ["speaker_2", "Guide"]
+    assert [[w.text for w in s.words] for s in segments] == [["Hello", "there"], ["Hi"]]
     assert [s.speaker_id for s in parse_segments(data, diarize=False)] == [
         None,
         None,

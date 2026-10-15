@@ -11,7 +11,7 @@ from typing import Any
 
 import httpx
 
-from transcribe.types import ProviderName, Segment, TranscriptionError
+from transcribe.types import ProviderName, Segment, TranscriptionError, Word
 
 URL = "https://openrouter.ai/api/v1/audio/transcriptions"
 DEFAULT_MODEL = "microsoft/mai-transcribe-2"
@@ -46,23 +46,21 @@ class OpenRouterProvider:
         self.client = client or httpx.Client(timeout=TIMEOUT)
         self.sleep = sleep
         self.cost: float | None = None
-        # Azure (MAI-Transcribe) may want its own names for speaker labels and
-        # keyword biasing; once it does, every later chunk uses them.
-        self.azure_options = False
 
     def standard(self, audio: Path, bias_terms: list[str] | None) -> str:
         """Return the full transcription text without timestamps or speaker labels."""
         data = self._transcribe(audio, {"response_format": "json"}, False, bias_terms)
-        return str(data.get("text", ""))
+        return str(data.get("text") or "")
 
     def segments(
         self, audio: Path, diarize: bool, bias_terms: list[str] | None
     ) -> list[Segment]:
         """Return transcription segments with timestamps and optional speaker
         labels."""
+        # Words too: subtitles split long segments at them.
         options: JSON = {
             "response_format": "verbose_json",
-            "timestamp_granularities": ["segment", "word"] if diarize else ["segment"],
+            "timestamp_granularities": ["segment", "word"],
         }
         data = self._transcribe(audio, options, diarize, bias_terms)
         return parse_segments(data, diarize)
@@ -75,26 +73,16 @@ class OpenRouterProvider:
         bias_terms: list[str] | None,
     ) -> JSON:
         audio_data = base64.b64encode(audio.read_bytes()).decode("ascii")
-        extras = bool(diarize or bias_terms)
-        try:
-            data = self._post(
-                request_body(
-                    self.model,
-                    audio_data,
-                    audio.suffix.lstrip(".").lower(),
-                    options,
-                    diarize,
-                    bias_terms,
-                    self.azure_options,
-                )
+        data = self._post(
+            request_body(
+                self.model,
+                audio_data,
+                audio.suffix.lstrip(".").lower(),
+                options,
+                diarize,
+                bias_terms,
             )
-        except _BadRequest as e:
-            if self.azure_options or not extras or not _is_azure(self.model):
-                raise TranscriptionError(str(e)) from None
-            # The generic fields aren't supported by every provider; Azure
-            # takes its own under provider.options.
-            self.azure_options = True
-            return self._transcribe(audio, options, diarize, bias_terms)
+        )
         cost = (data.get("usage") or {}).get("cost")
         if isinstance(cost, int | float):
             self.cost = (self.cost or 0.0) + cost
@@ -112,16 +100,10 @@ class OpenRouterProvider:
                 if response.is_success:
                     return response.json()
                 message = _error_message(response)
-                if response.status_code == 400:
-                    raise _BadRequest(message)
                 if response.status_code not in RETRY_STATUSES or attempt == ATTEMPTS:
                     raise TranscriptionError(message)
             self.sleep(2.0**attempt)
         raise AssertionError("unreachable")
-
-
-class _BadRequest(Exception):
-    """A 400 from OpenRouter: the request asks for something unsupported."""
 
 
 def request_body(
@@ -131,7 +113,6 @@ def request_body(
     options: JSON,
     diarize: bool,
     bias_terms: list[str] | None,
-    azure_options: bool,
 ) -> JSON:
     """The JSON body for one transcription request."""
     body: JSON = {
@@ -139,23 +120,23 @@ def request_body(
         "input_audio": {"data": audio_data, "format": audio_format},
         **options,
     }
-    if azure_options:
-        azure: JSON = {}
-        if diarize:
-            azure["diarization"] = {"enabled": True}
-        if bias_terms:
-            azure["phraseList"] = {"phrases": bias_terms}
-        body["provider"] = {"options": {"azure": azure}}
-        return body
     if diarize:
         body["diarize"] = True
     if bias_terms:
-        body["keyterms"] = bias_terms
+        if _is_azure(model):
+            # Azure refuses the generic keyterms (400 "does not support
+            # keyterms") but takes its own phrase list, which OpenRouter
+            # passes through.
+            body["provider"] = {
+                "options": {"azure": {"phraseList": {"phrases": bias_terms}}}
+            }
+        else:
+            body["keyterms"] = bias_terms
     return body
 
 
 def parse_segments(data: JSON, diarize: bool) -> list[Segment]:
-    """Segments from a verbose_json response.
+    """Segments from a verbose_json response, with their words.
 
     Speaker labels come on the segments or only on the words, depending on
     the provider; a segment without one takes the speaker of most of its
@@ -173,6 +154,11 @@ def parse_segments(data: JSON, diarize: bool) -> list[Segment]:
                 end=float(seg["end"]),
                 text=str(seg["text"]),
                 speaker_id=speaker,
+                words=[
+                    Word(float(w["start"]), float(w["end"]), str(w["word"]))
+                    for w in words
+                    if _within(w, seg) and w.get("type", "word") == "word"
+                ],
             )
         )
     text = str(data.get("text") or "").strip()
@@ -191,10 +177,14 @@ def _speaker(item: JSON) -> str | None:
     return f"speaker_{number + 1}" if isinstance(number, int) else None
 
 
+def _within(word: JSON, seg: JSON) -> bool:
+    return seg["start"] <= word.get("start", -1) < seg["end"]
+
+
 def _speaker_of_words(seg: JSON, words: list[JSON]) -> str | None:
     counts: dict[str, int] = {}
     for word in words:
-        if seg["start"] <= word.get("start", -1) < seg["end"]:
+        if _within(word, seg):
             speaker = _speaker(word)
             if speaker:
                 counts[speaker] = counts.get(speaker, 0) + 1

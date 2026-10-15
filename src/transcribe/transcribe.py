@@ -99,15 +99,10 @@ def _transcribe_mp3(
         for i, chunk in enumerate(chunks):
             _progress(i + 1, chunks)
             offset = i * provider.chunk_seconds
-            for seg in provider.segments(chunk, diarize, bias_terms):
-                all_segments.append(
-                    Segment(
-                        start=seg.start + offset,
-                        end=seg.end + offset,
-                        text=seg.text,
-                        speaker_id=seg.speaker_id,
-                    )
-                )
+            all_segments += [
+                seg.shifted(offset)
+                for seg in provider.segments(chunk, diarize, bias_terms)
+            ]
     if not all_segments:
         # Wind, music or a motor: nothing to say is a result, not a failure.
         typer.echo("No speech found.")

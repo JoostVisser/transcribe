@@ -1,7 +1,14 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
+
+
+@dataclass
+class Word:
+    start: float
+    end: float
+    text: str  # with its punctuation
 
 
 @dataclass
@@ -10,6 +17,19 @@ class Segment:
     end: float
     text: str
     speaker_id: str | None = None
+    # When the provider gives word timestamps; subtitles split long segments
+    # at them.
+    words: list[Word] = field(default_factory=list)
+
+    def shifted(self, offset: float) -> "Segment":
+        """This segment `offset` seconds later."""
+        return Segment(
+            self.start + offset,
+            self.end + offset,
+            self.text,
+            self.speaker_id,
+            [Word(w.start + offset, w.end + offset, w.text) for w in self.words],
+        )
 
 
 class TranscriptionKind(StrEnum):
